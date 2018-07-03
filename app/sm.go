@@ -28,6 +28,7 @@ import (
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
+	"github.com/Peripli/service-manager/filters/auth"
 )
 
 // Parameters contains context, environment for configuring a Service Manager server and optional extensions API
@@ -51,6 +52,7 @@ func New(cfg *config.Settings, params *Parameters) (*server.Server, error) {
 	}
 
 	coreAPI := api.New(storage, cfg.API)
+	registerDefaultFilters(coreAPI, storage, cfg)
 	if params.API != nil {
 		coreAPI.RegisterControllers(params.API.Controllers...)
 		coreAPI.RegisterFilters(params.API.Filters...)
@@ -58,3 +60,10 @@ func New(cfg *config.Settings, params *Parameters) (*server.Server, error) {
 
 	return server.New(coreAPI, cfg.Server)
 }
+
+func registerDefaultFilters(api *rest.API, storage storage.Storage, cfg *config.Settings) {
+	api.RegisterFilters(auth.BasicAuthFilters(storage.Credentials())...)
+	api.RegisterFilters(auth.OAuthFilters(cfg.API.TokenIssuerURL)...)
+}
+
+
