@@ -18,23 +18,15 @@ package auth
 
 import (
 	"github.com/Peripli/service-manager/pkg/filter"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/authentication/oidc"
 	"github.com/Peripli/service-manager/authentication/basic"
 	"errors"
 	"strings"
+	"fmt"
 )
 
-type BasicAuthData struct {
-	CredentialsStorage storage.Credentials
-}
 
-type OAuthData struct {
-	TokenIssuerURL string
-}
-
-
-func AuthenticationFilter(req *filter.Request, handler filter.Handler) (*filter.Response, error) {
+func (authFilter AuthenticationFilter) authFilterDispatcher(req *filter.Request, handler filter.Handler) (*filter.Response, error) {
 	authHeader := req.Header.Get("Authorization")
 	if authHeader == "" {
 		return nil, errors.New("Missing Authorization header!")
@@ -42,20 +34,25 @@ func AuthenticationFilter(req *filter.Request, handler filter.Handler) (*filter.
 
 	header := strings.Split(authHeader, " ")
 	schema := header[0]
-	credentials := header[1]
 
 	switch schema {
 	case "Basic":
+		fmt.Println("BASIC")
+		return authFilter.basicAuthFilter(req, handler)
 	case "Bearer":
+		fmt.Println("BEARER")
+		return authFilter.oAuthFilter(req, handler)
 	}
 
 
-	return handler(req)
+	return &filter.Response{
+		StatusCode: 400,
+	}, nil
 }
 
 // Filter which authenticates requests coming from Broker proxies using Basic Authentication
-func (data BasicAuthData) basicAuthFilter(req *filter.Request, handler filter.Handler) (*filter.Response, error) {
-	authenticator := basic.NewAuthenticator(data.CredentialsStorage)
+func (authFilter AuthenticationFilter) basicAuthFilter(req *filter.Request, handler filter.Handler) (*filter.Response, error) {
+	authenticator := basic.NewAuthenticator(authFilter.CredentialsStorage)
 	_, err := authenticator.Authenticate(req.Request)
 	if err != nil {
 		return nil, err
@@ -65,9 +62,9 @@ func (data BasicAuthData) basicAuthFilter(req *filter.Request, handler filter.Ha
 }
 
 // Filter which authenticates requests coming from Service Manger CLI using OAuth
-func (data OAuthData) oAuthCLIFilter(req *filter.Request, handler filter.Handler) (*filter.Response, error) {
+func (authFilter AuthenticationFilter) oAuthFilter(req *filter.Request, handler filter.Handler) (*filter.Response, error) {
 	authenticator, err := oidc.NewAuthenticator(req.Request.Context(), oidc.Options{
-		IssuerURL:data.TokenIssuerURL,
+		IssuerURL: authFilter.TokenIssuerURL,
 		ClientID: "cf",
 	})
 	if err != nil {

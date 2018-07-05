@@ -62,8 +62,8 @@ func New(cfg *config.Settings, params *Parameters) (*server.Server, error) {
 }
 
 func registerDefaultFilters(api *rest.API, storage storage.Storage, cfg *config.Settings) {
-	api.RegisterFilters(auth.BasicAuthFilters(storage.Credentials())...)
-	api.RegisterFilters(auth.OAuthFilters(cfg.API.TokenIssuerURL)...)
+	authFilter := auth.NewAuthenticationFilter(storage.Credentials(), cfg.API.TokenIssuerURL)
+	api.RegisterFilters(authFilter.Filters()...)
 }
 
 

@@ -21,48 +21,47 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-func BasicAuthFilters(storage storage.Credentials) []filter.Filter {
-	data := BasicAuthData{
-		CredentialsStorage: storage,
-	}
+type AuthenticationFilter struct {
+	CredentialsStorage storage.Credentials
+	TokenIssuerURL string
+}
 
+func NewAuthenticationFilter(credentialStorage storage.Credentials, tokenIssuerURL string) AuthenticationFilter {
+	return AuthenticationFilter{
+		CredentialsStorage: credentialStorage,
+		TokenIssuerURL: tokenIssuerURL,
+	}
+}
+
+func (authFilter AuthenticationFilter) Filters() []filter.Filter {
 	return []filter.Filter{
 		{
 			RouteMatcher: filter.RouteMatcher{
 				Methods: []string{"*"},
 				PathPattern: "/v1/osb/**",
 			},
-			Middleware: data.basicAuthFilter,
+			Middleware: authFilter.basicAuthFilter,
 		},
 		{
 			RouteMatcher: filter.RouteMatcher{
 				Methods: []string{"*"},
 				PathPattern: "/v1/service_brokers/**",
 			},
-			Middleware: data.basicAuthFilter,
+			Middleware: authFilter.authFilterDispatcher,
 		},
-	}
-}
-
-func OAuthFilters(tokenIssuerURL string) []filter.Filter {
-	data := OAuthData{
-		TokenIssuerURL: tokenIssuerURL,
-	}
-
-	return []filter.Filter {
 		{
 			RouteMatcher: filter.RouteMatcher{
 				Methods: []string{"*"},
 				PathPattern: "/v1/platforms/**",
 			},
-			Middleware: data.oAuthCLIFilter,
+			Middleware: authFilter.oAuthFilter,
 		},
 		{
 			RouteMatcher: filter.RouteMatcher{
 				Methods: []string{"*"},
-				PathPattern: "/v1/service_brokers/**",
+				PathPattern: "/v1/sm_catalog",
 			},
-			Middleware: data.oAuthCLIFilter,
+			Middleware: authFilter.oAuthFilter,
 		},
 	}
 }
